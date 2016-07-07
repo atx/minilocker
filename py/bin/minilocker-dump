@@ -1,0 +1,44 @@
+#! /usr/bin/env python3
+
+import asyncio
+import argparse
+import minilocker
+import glob
+
+def format_point(pt):
+    return "x = % 8d\ty = % 8d\tz = % 8d" % (pt.x, pt.y, pt.z)
+
+async def main():
+    parser = argparse.ArgumentParser(
+        prog = "MiniLocker data viewer"
+    )
+    parser.add_argument(
+        "-s", "--serial",
+        help = "Serial port to use",
+        default = "/dev/ttyACM*"
+    )
+    args = parser.parse_args()
+
+    ml = await minilocker.MiniLocker.connect(glob.glob(args.serial)[0])
+
+    cimu = None
+    cmag = None
+    while True:
+        if not cimu:
+            cimu = asyncio.Task(ml.next_imu())
+        if not cmag:
+            cmag = asyncio.Task(ml.next_magnet())
+
+        done, _ = await asyncio.wait([cimu, cmag], return_when = asyncio.FIRST_COMPLETED)
+
+        if cimu.done():
+            acc, gyr = cimu.result()
+            print("acc: %s" % format_point(acc))
+            print("gyr: %s" % format_point(gyr))
+            cimu = None
+        if cmag.done():
+            print("mag: %s" % format_point(cmag.result()))
+            cmag = None
+
+if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(main())

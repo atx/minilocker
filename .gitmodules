@@ -1,3 +1,7 @@
 [submodule "pcb/kicad-mini-pci-express"]
 	path = pcb/kicad-mini-pci-express
 	url = https://github.com/mithro/kicad-mini-pci-express.git
+[submodule "src/libopencm3"]
+	path = src/libopencm3
+	url = git@github.com:atalax/libopencm3.git
+	branch = minilocker
