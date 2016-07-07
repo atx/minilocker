@@ -6,7 +6,7 @@ import minilocker
 import glob
 
 def format_point(pt):
-    return "x = % 8d\ty = % 8d\tz = % 8d" % (pt.x, pt.y, pt.z)
+    return "x = % 8f\ty = % 8f\tz = % 8f" % (pt.x, pt.y, pt.z)
 
 async def main():
     parser = argparse.ArgumentParser(

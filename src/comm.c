@@ -109,7 +109,10 @@ static int comm_cb_ping(char *buf, int len)
 
 enum propkey {
 	CONF_FW		= 0x01,
-	CONF_SERNO	= 0x02
+	CONF_SERNO	= 0x02,
+	CONF_MAGCALX	= 0x03,
+	CONF_MAGCALY	= 0x04,
+	CONF_MAGCALZ	= 0x05,
 };
 
 struct propvar {
@@ -128,23 +131,14 @@ static void comm_const_uint16_get(const struct propvar *prop)
 	comm_send(p, sizeof(p), true);
 }
 
-//static void comm_uint16_set(const struct propvar *prop, char *buf, int len)
-//{
-//	UNUSED(len);
-//	uint16_t *i = prop->data;
-//	*i = le_to_u16(&buf[2]);
-//}
-//
-//static void comm_uint16_get(const struct propvar *prop)
-//{
-//	int16_t *i = prop->data;
-//	char p[] =
-//		{ PACKET_GETRESP, prop->key,
-//			BYTE(0, *i),
-//			BYTE(1, *i)};
-//	comm_send(p, sizeof(p), true);
-//}
-//
+static void comm_uint8_get(const struct propvar *prop)
+{
+	uint8_t *i = prop->data;
+	char p[] =
+		{ PACKET_GETRESP, prop->key, *i };
+	comm_send(p, sizeof(p), true);
+}
+
 //struct boolprop {
 //	void (*enable)();
 //	void (*disable)();
@@ -176,7 +170,10 @@ static void comm_const_uint16_get(const struct propvar *prop)
 
 static const struct propvar propvars[] = {
 	{ CONF_FW, comm_const_uint16_get, NULL, 2, (void *)FIRMWARE_VERSION },
-	{ CONF_SERNO, comm_const_uint16_get, NULL, 2, (void *)SERNO }
+	{ CONF_SERNO, comm_const_uint16_get, NULL, 2, (void *)SERNO },
+	{ CONF_MAGCALX, comm_uint8_get, NULL, 2, &acq_ak8963.cal_x },
+	{ CONF_MAGCALY, comm_uint8_get, NULL, 2, &acq_ak8963.cal_y },
+	{ CONF_MAGCALZ, comm_uint8_get, NULL, 2, &acq_ak8963.cal_z },
 };
 
 static const struct propvar *comm_resolve_key(enum propkey k)

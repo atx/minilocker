@@ -18,6 +18,11 @@
 #ifndef ACQ_H
 #define ACQ_H
 
+#include "mpu.h"
+
+extern struct mpu9250 acq_mpu9250;
+extern struct ak8963 acq_ak8963;
+
 void acq_init();
 void acq_start();
 void acq_stop();

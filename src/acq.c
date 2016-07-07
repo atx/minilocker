@@ -25,17 +25,16 @@
 
 #include "comm.h"
 #include "prios.h"
-#include "mpu.h"
 
 #define I2C_MPU I2C1
 #define EXTI_MPU EXTI5
 
-struct mpu9250 mpu = {
+struct mpu9250 acq_mpu9250 = {
 	.i2c = I2C_MPU,
 	.addr = MPU9250_ADDR_AD0_LOW,
 };
 
-struct ak8963 ak = {
+struct ak8963 acq_ak8963 = {
 	.i2c = I2C_MPU
 };
 
@@ -43,12 +42,12 @@ void exti4_15_isr()
 {
 	int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
 
-	mpu_accel(&mpu, &ax, &ay, &az);
-	mpu_gyro(&mpu, &gx, &gy, &gz);
+	mpu_accel(&acq_mpu9250, &ax, &ay, &az);
+	mpu_gyro(&acq_mpu9250, &gx, &gy, &gz);
 	comm_send_imu(ax, ay, az, gx, gy, gz);
 
-	if (ak_ready(&ak)) {
-		ak_values(&ak, &mx, &my, &mz);
+	if (ak_ready(&acq_ak8963)) {
+		ak_values(&acq_ak8963, &mx, &my, &mz);
 		comm_send_magnetometer(mx, my, mz);
 	}
 
@@ -81,8 +80,8 @@ void acq_init()
 	i2c_set_7bit_addr_mode(I2C_MPU);
 	i2c_peripheral_enable(I2C_MPU);
 
-	mpu_init(&mpu);
-	ak_init(&ak);
+	mpu_init(&acq_mpu9250);
+	ak_init(&acq_ak8963);
 
 	/* Configure the interrupt line */
 	exti_select_source(EXTI_MPU, GPIOB);
