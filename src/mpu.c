@@ -62,7 +62,7 @@ void mpu_accel(struct mpu9250 *mpu, int16_t *x, int16_t *y, int16_t *z)
 
 void mpu_gyro(struct mpu9250 *mpu, int16_t *x, int16_t *y, int16_t *z)
 {
-	read_xyz(mpu->i2c, mpu->addr, MPU9250_REG_ACCEL_XOUT_H, x, y, z);
+	read_xyz(mpu->i2c, mpu->addr, MPU9250_REG_GYRO_XOUT_H, x, y, z);
 }
 
 void mpu_init(struct mpu9250 *mpu)
