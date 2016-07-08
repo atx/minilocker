@@ -28,7 +28,32 @@ import operator
 import struct
 import collections
 
-Point3d = collections.namedtuple("Point3d", ["x", "y", "z"])
+class Point3d(collections.namedtuple("Point3d", ["x", "y", "z"])):
+
+    def __add__(self, other):
+        return Point3d(x = self.x + other.x,
+                       y = self.y + other.y,
+                       z = self.z + other.z)
+
+    def __sub__(self, other):
+        return Point3d(x = self.x - other.x,
+                       y = self.y - other.y,
+                       z = self.z - other.z)
+
+    def __mul__(self, other):
+        return Point3d(x = self.x * other,
+                       y = self.y * other,
+                       z = self.z * other)
+    __rmul__ = __mul__
+
+    def __truediv__(self, other):
+        return Point3d(x = self.x / other,
+                       y = self.y / other,
+                       z = self.z / other)
+    __rtruediv__ = __truediv__
+
+Point3d.ZERO = Point3d(0, 0, 0)
+
 
 # Originally from https://github.com/atalax/spectrometer/blob/master/interface/standalone/spectrometer.py
 
@@ -189,7 +214,7 @@ class MiniLocker:
 
     async def next_imu(self):
         p = await self.recv_packet_queued(MiniLocker.PACK_IMU)
-        return (unpack_3d(p[1:7]), unpack_3d(p[7:13]))
+        return (unpack_3d(p[1:7]) / 32767, unpack_3d(p[7:13]) / 32767)
 
     async def next_magnet(self):
         p = await self.recv_packet_queued(MiniLocker.PACK_MAGNET)
