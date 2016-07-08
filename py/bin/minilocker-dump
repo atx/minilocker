@@ -10,14 +10,33 @@ def format_point(pt):
 
 async def main():
     parser = argparse.ArgumentParser(
-        prog = "MiniLocker data viewer"
+        prog = "minilocker-dump"
     )
     parser.add_argument(
         "-s", "--serial",
         help = "Serial port to use",
         default = "/dev/ttyACM*"
     )
+    parser.add_argument(
+        "-a", "--accelerometer",
+        help = "Print accelerometer output",
+        action = "store_true"
+    )
+    parser.add_argument(
+        "-g", "--gyro",
+        help = "Print gyroscope output",
+        action = "store_true"
+    )
+    parser.add_argument(
+        "-m", "--magnetometer",
+        help = "Print magnetometer output",
+        action = "store_true"
+    )
     args = parser.parse_args()
+
+    if all([not x for x in [args.accelerometer, args.gyro, args.magnetometer]]):
+        parser.error("At least one of -a/-g/-m has to be specified")
+        return
 
     ml = await minilocker.MiniLocker.connect(glob.glob(args.serial)[0])
 
@@ -33,11 +52,14 @@ async def main():
 
         if cimu.done():
             acc, gyr = cimu.result()
-            print("acc: %s" % format_point(acc))
-            print("gyr: %s" % format_point(gyr))
+            if args.accelerometer:
+                print("acc: %s" % format_point(acc))
+            if args.gyro:
+                print("gyr: %s" % format_point(gyr))
             cimu = None
         if cmag.done():
-            print("mag: %s" % format_point(cmag.result()))
+            if args.magnetometer:
+                print("mag: %s" % format_point(cmag.result()))
             cmag = None
 
 if __name__ == "__main__":
