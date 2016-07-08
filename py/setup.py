@@ -9,7 +9,7 @@ setup(
     name = "minilocker",
     version = "0.1",
     packages = ["minilocker"],
-    scripts = ["bin/minilocker-dump"],
+    scripts = ["bin/minilocker-dump", "bin/minilocker-vis"],
     description = "MiniLocker interface library + binaries",
     author = "Josef Gajdusek",
     author_email = "atx@atx.name",
