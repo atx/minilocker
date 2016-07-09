@@ -3,6 +3,7 @@
 import asyncio
 import argparse
 import minilocker
+import minilocker.config as config
 import glob
 
 def format_point(pt):
@@ -11,11 +12,6 @@ def format_point(pt):
 async def main():
     parser = argparse.ArgumentParser(
         prog = "minilocker-dump"
-    )
-    parser.add_argument(
-        "-s", "--serial",
-        help = "Serial port to use",
-        default = "/dev/ttyACM*"
     )
     parser.add_argument(
         "-a", "--accelerometer",
@@ -32,13 +28,14 @@ async def main():
         help = "Print magnetometer output",
         action = "store_true"
     )
+    config.cli_add_default_args(parser)
     args = parser.parse_args()
 
     if all([not x for x in [args.accelerometer, args.gyro, args.magnetometer]]):
         parser.error("At least one of -a/-g/-m has to be specified")
         return
 
-    ml = await minilocker.MiniLocker.connect(glob.glob(args.serial)[0])
+    cfg, ml = await config.cli_connect(args)
 
     cimu = None
     cmag = None

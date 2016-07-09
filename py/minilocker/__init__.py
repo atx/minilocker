@@ -109,6 +109,7 @@ class MiniLocker:
         self._packqueues = [asyncio.Queue() for _ in range(256)]
         self._packlock = asyncio.Lock()
         self._proplock = asyncio.Lock()
+        self.magbias = Point3d.ZERO
 
         self._transport = None
 
@@ -219,7 +220,7 @@ class MiniLocker:
     async def next_magnet(self):
         p = await self.recv_packet_queued(MiniLocker.PACK_MAGNET)
         return Point3d(*[(v * c) / x for v, c, x in
-                         zip(list(unpack_3d(p[1:])), self._magcal, self._magmax)])
+                         zip(list(unpack_3d(p[1:])), self._magcal, self._magmax)]) - self.magbias
 
     def flush(self):
         self._recvqueue = asyncio.Queue()
