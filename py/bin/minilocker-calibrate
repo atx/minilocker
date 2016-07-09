@@ -1,0 +1,142 @@
+#! /usr/bin/env python3
+# The MIT License (MIT)
+#
+# Copyright (C) 2016 Josef Gajdusek <atx@atx.name>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+import argparse
+import atexit
+import asyncio
+import glob
+import minilocker
+import minilocker.config as config
+from minilocker.filter import DecimatingFIRFilter, CompositeFilter, ScaleFilter
+from quamash import QtGui, QEventLoop
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+from numpy import *
+import scipy.optimize
+import json
+
+def calibrate(pts):
+    # See
+    # https://github.com/kriswiner/MPU-6050/wiki/Simple-and-Effective-Magnetometer-Calibration
+    # for reference
+    # TODO: Maybe fitting with a spheroid or something would work better?
+    # There are much more sophisticated methods, read the referenced appnotes in
+    # the article above for those.
+    # Also note that the board is mounted inside a notebook, usually in a metal
+    # case and with a HDD nearby, which probably further skews the measurement
+    pts = array([list(p) for p in pts])
+    mx = amax(pts, axis = 0)
+    mi = amin(pts, axis = 0)
+    bias = (mx + mi) / 2
+    scales = (mx - mi) / 2
+    scales = scales / max(scales)
+    scales = 1 / scales
+    return bias, scales
+
+async def main(args, scatuncal, scatcal):
+    global pts
+    filt = DecimatingFIRFilter([1] * 10, decimate = 10)
+
+    colors = array([(1, 0, 0, 1), (0, 1, 0, 1), (0, 0, 1, 1)])
+
+    cfg, ml = await config.cli_connect(args)
+    ml.set_magcal(minilocker.Point3d(1, 1, 1)) # Drop the built-in rescaling coefficients
+
+    pts = []
+
+    cimu = None
+    cmag = None
+    while len(pts) < args.pt_count:
+        if not cimu:
+            cimu = asyncio.Task(ml.next_imu())
+        if not cmag:
+            cmag = asyncio.Task(ml.next_magnet())
+
+        done, _ = await asyncio.wait([cimu, cmag], return_when = asyncio.FIRST_COMPLETED)
+
+        update = False
+        if cimu.done():
+            acc, gyr = cimu.result()
+            cimu = None
+        if cmag.done():
+            mag = cmag.result()
+            res = filt.push(mag)
+            if res:
+                pts.append(res)
+                update = True
+            cmag = None
+        if update:
+            pos = array([array(p) * 1000 for p in pts])
+            scatuncal.setData(pos = pos, size = 0.3, color = (0, 0, 1, 1), pxMode = False)
+            bias, scales = calibrate(pts)
+            pos = array([(array(p) - bias) * scales * 1000 for p in pts])
+            scatcal.setData(pos = pos, size = 0.2, color = (1, 1, 0, 1), pxMode = False)
+
+    for t in [cimu, cmag]:
+        if t:
+            await t
+    bias, scales = calibrate(pts)
+    print("Calibrated magnetometer:")
+    print("  bias:\t %r" % bias)
+    print("  scale:\t %r" % scales)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog = "MiniLocker data viewer"
+    )
+    parser.add_argument(
+        "-p", "--pt-count",
+        help = "Amount of points to collect (10pts/second)",
+        type = int,
+        default = 1000
+    )
+    config.cli_add_default_args(parser)
+    args = parser.parse_args()
+
+    app = QtGui.QApplication([])
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+    atexit.register(loop.close)
+
+    view = gl.GLViewWidget()
+    view.show()
+
+    xgrid = gl.GLGridItem()
+    view.addItem(xgrid)
+
+    centerdot = gl.GLScatterPlotItem()
+    centerdot.setData(pos = array([[0, 0, 0]]), size = 0.3,
+                      color = (1, 1, 0, 1), pxMode = False)
+    view.addItem(centerdot)
+
+    scatuncal = gl.GLScatterPlotItem()
+    scatuncal.setData(pos = array([[0, 0, 0]]), size = array([0]),
+                 color = array([0, 0, 0, 0]), pxMode = False)
+    view.addItem(scatuncal)
+
+    scatcal = gl.GLScatterPlotItem()
+    scatcal.setData(pos = array([[0, 0, 0]]), size = array([0]),
+                 color = array([0, 0, 0, 0]), pxMode = False)
+    view.addItem(scatcal)
+
+    loop.run_until_complete(main(args, scatuncal, scatcal))

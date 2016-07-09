@@ -145,14 +145,18 @@ class MiniLocker:
 
         self.serno = await self.get_prop(MiniLocker.PROP_SERNO)
 
-        self._magcal = []
+        magcal = []
         # See AK89653 datasheet 8.3.11
         for p in [MiniLocker.PROP_MAGCALX, MiniLocker.PROP_MAGCALY, MiniLocker.PROP_MAGCALZ]:
             raw = await self.get_prop(p)
-            self._magcal.append(((raw - 128) * 0.5) / 128 + 1)
-        self._magmax = [32767 * c for c in self._magcal]
+            magcal.append(((raw - 128) * 0.5) / 128 + 1)
+        self.set_magcal(magcal)
 
         self.start()
+
+    def set_magcal(self, pt):
+        self.magcal = pt
+        self._magmax = [32767 * c for c in self.magcal]
 
     def start(self):
         self.send_packet(MiniLocker.PACK_START)
@@ -220,7 +224,7 @@ class MiniLocker:
     async def next_magnet(self):
         p = await self.recv_packet_queued(MiniLocker.PACK_MAGNET)
         return Point3d(*[(v * c) / x for v, c, x in
-                         zip(list(unpack_3d(p[1:])), self._magcal, self._magmax)]) - self.magbias
+                         zip(list(unpack_3d(p[1:])), list(self.magcal), self._magmax)]) - self.magbias
 
     def flush(self):
         self._recvqueue = asyncio.Queue()
